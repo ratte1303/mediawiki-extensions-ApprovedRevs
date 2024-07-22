@@ -574,7 +574,7 @@ class ApprovedRevsHooks {
 		if ( !ApprovedRevs::hasApprovedRevision( $title ) ) {
 			return true;
 		}
-
+	
 		$context = $article->getContext();
 		$request = $context->getRequest();
 		if ( $request->getCheck( 'oldid' ) ) {
@@ -590,21 +590,109 @@ class ApprovedRevsHooks {
 			// Don't show default Article::setOldSubtitle().
 			return false;
 		}
-
+	
 		$text = "";
 		ApprovedRevs::addCSS();
-
+	
 		$user = $context->getUser();
 		if ( ApprovedRevs::checkPermission( $user, $title, "viewlinktolatest" ) ) {
 			if ( $revisionID == $article->getPage()->getLatest() ) {
-				$text .= Xml::element(
-					'span',
-					[ 'class' => 'approvedAndLatestMsg' ],
-					wfMessage( 'approvedrevs-approvedandlatest' )->text()
+				// Add CSS styles for the message box
+				$text .= Html::rawElement(
+					'style',
+					[ 'type' => 'text/css' ],
+					'.abox {
+						position: relative;
+						display: flex;
+						flex-direction: column;
+						background-color: var(--color-surface-2);
+						border-radius: var(--border-radius--medium);
+						color: var(--color-base--subtle);
+						font-size: 0.875rem;
+						max-width: 370px;
+					}
+	
+					.abox.abox-high {
+						background-color: rgba(221, 51, 51, 0.1);
+					}
+	
+					.abox.abox-med {
+						background-color: rgba(255, 204, 51, 0.1);
+					}
+	
+					.abox-title {
+						display: flex;
+						align-items: center;
+						padding: var(--space-sm) var(--space-md);
+						font-weight: 500;
+					}
+	
+					.abox-icon img {
+						width: 14px;
+						height: auto;
+						margin-right: var(--space-xs);
+						opacity: 0.5;
+					}
+	
+					.abox-text {
+						position: absolute;
+						top: 100%;
+						z-index: 10;
+						padding: var(--space-md);
+						width: 100%;
+						box-sizing: border-box;
+						background-color: var(--color-surface-1);
+						border-bottom-left-radius: var(--border-radius--medium);
+						border-bottom-right-radius: var(--border-radius--medium);
+						box-shadow: var(--box-shadow-dialog);
+						opacity: 0;
+						visibility: hidden;
+					}
+	
+					.abox:hover {
+						border-bottom-left-radius: 0;
+						border-bottom-right-radius: 0;
+						box-shadow: var(--box-shadow-dialog);
+					}
+	
+					.abox:hover .abox-text {
+						opacity: 1;
+						visibility: visible;
+					}
+	
+					html.skin-citizen-dark .abox-icon img {
+						filter: invert(1);
+					}'
+				);
+	
+            // Fetch approver groups and format them for display
+            $approverGroups = self::getApproverGroups( $title );
+			$approverGroupsLinks = array_map( function ( $groupName ) {
+				// Create a link to the group page with spaces around it
+				$url = '/ArbeitWiki:' . urlencode($groupName);
+				return ' ' . Html::element(
+					'a',
+					[ 'href' => $url, 'class' => 'approver-group-link' ],
+					htmlspecialchars( $groupName )
+				) . ' ';
+            }, $approverGroups );
+
+            $approverGroupsText = implode( ', ', $approverGroupsLinks );
+	
+				// Add the HTML element with CSS styles and approver groups
+				$text .= Html::rawElement(
+					'div',
+					[ 'class' => 'abox approvedAndLatestMsg' ],
+					'<span class="abox-title"> ✅ Dieser Artikel ist ' . $approverGroupsText . ' bestätigt </span>'
+					. '<div class="abox-text">'
+					. 'Dieser Artikel wurde durch unser '
+					. '<a href="/ArbeitWiki:Team">Team</a> '
+					. 'bestätigt ❤️!'
+					. '</div>'
 				);
 			} else {
 				$text .= wfMessage( 'approvedrevs-notlatest' )->parse();
-
+	
 				$linkRenderer = MediaWikiServices::getInstance()->getLinkRenderer();
 				$text .= ' ' . $linkRenderer->makeLink(
 					$title,
@@ -612,7 +700,7 @@ class ApprovedRevsHooks {
 					[],
 					[ 'oldid' => $article->getPage()->getLatest() ]
 				);
-
+	
 				$text = Xml::tags(
 					'span',
 					[ 'class' => 'notLatestMsg' ],
@@ -620,7 +708,109 @@ class ApprovedRevsHooks {
 				);
 			}
 		}
+		if ( !ApprovedRevs::checkPermission( $user, $title, "viewlinktolatest" ) ) {
 
+				// Add CSS styles for the message box
+				$text .= Html::rawElement(
+					'style',
+					[ 'type' => 'text/css' ],
+					'.abox {
+						position: relative;
+						display: flex;
+						flex-direction: column;
+						background-color: var(--color-surface-2);
+						border-radius: var(--border-radius--medium);
+						color: var(--color-base--subtle);
+						font-size: 0.875rem;
+						max-width: 370px;
+					}
+	
+					.abox.abox-high {
+						background-color: rgba(221, 51, 51, 0.1);
+					}
+	
+					.abox.abox-med {
+						background-color: rgba(255, 204, 51, 0.1);
+					}
+	
+					.abox-title {
+						display: flex;
+						align-items: center;
+						padding: var(--space-sm) var(--space-md);
+						font-weight: 500;
+					}
+	
+					.abox-icon img {
+						width: 14px;
+						height: auto;
+						margin-right: var(--space-xs);
+						opacity: 0.5;
+					}
+	
+					.abox-text {
+						position: absolute;
+						top: 100%;
+						z-index: 10;
+						padding: var(--space-md);
+						width: 100%;
+						box-sizing: border-box;
+						background-color: var(--color-surface-1);
+						border-bottom-left-radius: var(--border-radius--medium);
+						border-bottom-right-radius: var(--border-radius--medium);
+						box-shadow: var(--box-shadow-dialog);
+						opacity: 0;
+						visibility: hidden;
+					}
+	
+					.abox:hover {
+						border-bottom-left-radius: 0;
+						border-bottom-right-radius: 0;
+						box-shadow: var(--box-shadow-dialog);
+					}
+	
+					.abox:hover .abox-text {
+						opacity: 1;
+						visibility: visible;
+					}
+	
+					html.skin-citizen-dark .abox-icon img {
+						filter: invert(1);
+					}'
+				);
+	
+            // Fetch approver groups and format them for display
+            $approverGroups = self::getApproverGroups( $title );
+			$approverGroupsLinks = array_map( function ( $groupName ) {
+				// Create a link to the group page with spaces around it
+				$url = '/ArbeitWiki:' . urlencode($groupName);
+				return ' ' . Html::element(
+					'a',
+					[ 'href' => $url, 'class' => 'approver-group-link' ],
+					htmlspecialchars( $groupName )
+				) . ' ';
+            }, $approverGroups );
+
+
+			if (empty($approverGroupsLinks)) {
+				$approverGroupsText = '';
+			} else {
+				$approverGroupsText = 'vor ' . implode(', ', $approverGroupsLinks);
+			}
+			
+				// Add the HTML element with CSS styles and approver groups
+				$text .= Html::rawElement(
+					'div',
+					[ 'class' => 'abox approvedAndLatestMsg' ],
+					'<span class="abox-title"> ✅ Dieser Artikel ist ' . $approverGroupsText . ' bestätigt </span>'
+					. '<div class="abox-text">'
+					. 'Dieser Artikel wurde durch unser '
+					. '<a href="/ArbeitWiki:Team">Team</a> '
+					. 'bestätigt ❤️!'
+					. '</div>'
+				);
+		}
+
+	
 		if ( ApprovedRevs::checkPermission( $user, $title, "viewapprover" ) ) {
 			$revisionUser = ApprovedRevs::getRevApprover( $title );
 			if ( $revisionUser ) {
@@ -632,7 +822,7 @@ class ApprovedRevsHooks {
 					Xml::closeElement( 'span' );
 			}
 		}
-
+	
 		if ( $text !== "" ) {
 			$out = $context->getOutput();
 			if ( $out->getSubtitle() != '' ) {
@@ -641,9 +831,32 @@ class ApprovedRevsHooks {
 				$out->setSubtitle( $text );
 			}
 		}
-
+	
 		return false;
 	}
+	
+	public static function getApproverGroups( Title $title ) {
+		$articleID = $title->getArticleID();
+		$dbr = ApprovedRevs::getReadDB();
+	
+		// Get the approver groups from the database
+		$result = $dbr->selectField(
+			'page_props',
+			'pp_value',
+			[
+				'pp_page' => $articleID,
+				'pp_propname' => "approvedrevs-approver-groups"
+			],
+			__METHOD__
+		);
+	
+		if ( $result !== false ) {
+			return explode( ',', $result ); // Return the list of approver groups
+		}
+	
+		return []; // Return an empty array if no groups are found
+	}
+	
 
 	/**
 	 * Hook: TitleGetEditNotices
@@ -1079,9 +1292,7 @@ class ApprovedRevsHooks {
 
 		// If the user isn't supposed to see these kinds of
 		// messages, exit.
-		if ( !ApprovedRevs::checkPermission( $user, $title, "viewlinktolatest" ) ) {
-			return;
-		}
+
 
 		// If there's an approved revision for this page, and the
 		// user is looking at it - either by simply going to the page,
@@ -1110,32 +1321,43 @@ class ApprovedRevsHooks {
 				// at all? Aren't the "approve this revision"
 				// links in the history page always good
 				// enough?
-				$out->addHTML( Xml::tags( 'span', [ 'id' => 'contentSub2' ],
-					Xml::element( 'a',
-					[ 'href' => $title->getLocalUrl(
-						[
-							'action' => 'approve',
-							'oldid' => $request->getInt( 'oldid' )
-						]
-					) ],
-					wfMessage( 'approvedrevs-approvethisrev' )->text()
-				) ) );
+				$approveUrl = $title->getLocalUrl([
+					'action' => 'approve',
+					'oldid' => $request->getInt( 'oldid' )
+				]);
+		
+				$out->addHTML(
+					Xml::tags(
+						'span',
+						[ 'id' => 'contentSub2' ],
+						Xml::element(
+							'a',
+							[ 'href' => $approveUrl ],
+							wfMessage( 'approvedrevs-approvethisrev' )->text()
+						)
+					)
+				);
 			}
 		} else {
+			$latestRevUrl = $title->getLocalUrl([
+				'oldid' => $article->getRevIdFetched()
+			]);
+		
+			// Prüfen, ob der Benutzer das Recht hat, den neuesten Stand anzuzeigen
+			$viewLatestRevMessage = '';
+			if ( ApprovedRevs::checkPermission( $user, $title, 'viewlinktolatest' ) ) {
+				$viewLatestRevMessage = Xml::element(
+					'a',
+					[ 'href' => $latestRevUrl ],
+					wfMessage( 'approvedrevs-viewlatestrev' )->text()
+				);
+			}
+		
 			$out->addSubtitle(
 				htmlspecialchars( wfMessage( 'approvedrevs-blankpageshown' )->text() ) . '&#160;' .
-				Xml::element( 'a',
-					[ 'href' => $title->getLocalUrl(
-						[
-							'oldid' => $article->getRevIdFetched()
-						]
-					) ],
-					wfMessage( 'approvedrevs-viewlatestrev' )->text()
-				)
+				$viewLatestRevMessage
 			);
 		}
-
-		$out->addHTML( '</span>' );
 	}
 
 	/**
